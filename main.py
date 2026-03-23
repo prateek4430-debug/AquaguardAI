@@ -106,3 +106,54 @@ def grow_tree(X_data, y_data, current_depth=0, depth_limit=5, leaf_min=10):
         "branch_left":  grow_tree(X_data[go_left],  left_y,  current_depth+1, depth_limit, leaf_min),
         "branch_right": grow_tree(X_data[go_right], right_y, current_depth+1, depth_limit, leaf_min)
     }
+def classify_row(node, row_data):
+    if node["is_leaf"]:
+        return node["decision"]
+    if row_data[node["feature"]] < node["threshold"]:
+        return classify_row(node["branch_left"], row_data)
+    return classify_row(node["branch_right"], row_data)
+
+def train_and_evaluate(dataframe):
+    input_cols = [col for col in dataframe.columns if col != "Risk_Level"]
+    X_all = dataframe[input_cols].values
+    y_all = list(dataframe["Risk_Level"])
+
+    cutoff   = int(0.8 * len(X_all))
+    X_tr, X_te = X_all[:cutoff], X_all[cutoff:]
+    y_tr, y_te = y_all[:cutoff], y_all[cutoff:]
+
+    trained_tree = grow_tree(X_tr, y_tr)
+    predictions  = [classify_row(trained_tree, r) for r in X_te]
+
+    hits = sum(1 for actual, pred in zip(y_te, predictions) if actual == pred)
+    overall_acc = hits / len(y_te)
+
+    print(f"\n  {'Category':<16} {'Right':>6} {'Out Of':>8} {'Score':>8}")
+    print("  " + "-"*42)
+    for cat in sorted(set(y_te)):
+        cat_total   = y_te.count(cat)
+        cat_correct = sum(1 for a, p in zip(y_te, predictions) if a == p == cat)
+        cat_acc     = cat_correct / max(cat_total, 1) * 100
+        print(f"  {cat:<16} {cat_correct:>6} {cat_total:>8} {cat_acc:>7.1f}%")
+
+    return trained_tree, overall_acc, input_cols
+
+def compute_danger_score(reading):
+    pts = 0
+    if reading[0] < WHO_PH_LOW or reading[0] > WHO_PH_HIGH: pts += 2
+    if reading[1] > WHO_TURBIDITY:  pts += 2
+    if reading[2] > WHO_TDS:        pts += 1
+    if reading[5] > WHO_NITRATE:    pts += 2
+    if reading[4] < WHO_CHLORINE_LOW or reading[4] > WHO_CHLORINE_HIGH: pts += 1
+    if reading[7] == 1:             pts += 3
+    if reading[3] > WHO_HARDNESS:   pts += 1
+    return pts
+
+def run_prediction(tree, reading):
+    outcome = classify_row(tree, reading)
+    danger  = compute_danger_score(reading)
+    risk_ratio = round(min(danger / 12, 1.0), 2)
+    safe_ratio = round(max(1.0 - risk_ratio - 0.1, 0.0), 2)
+    mid_ratio  = round(1.0 - risk_ratio - safe_ratio, 2)
+    confidence = {"Safe": safe_ratio, "Moderate Risk": mid_ratio, "High Risk": risk_ratio}
+    return outcome, confidence
