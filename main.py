@@ -157,3 +157,55 @@ def run_prediction(tree, reading):
     mid_ratio  = round(1.0 - risk_ratio - safe_ratio, 2)
     confidence = {"Safe": safe_ratio, "Moderate Risk": mid_ratio, "High Risk": risk_ratio}
     return outcome, confidence
+def give_advice(outcome, reading):
+    advice = []
+    if outcome == "Safe":
+        advice.append("Water parameters are all within WHO safe limits.")
+        advice.append("Schedule next check-up after 7 days.")
+    elif outcome == "Moderate Risk":
+        advice.append("Some parameters need correction — not critical yet.")
+        if reading[0] < WHO_PH_LOW or reading[0] > WHO_PH_HIGH:
+            advice.append(f"pH reading ({reading[0]:.1f}) is outside 6.5-8.5 range. Neutralise the source.")
+        if reading[1] > WHO_TURBIDITY:
+            advice.append("Water appears cloudy. Run it through a sediment filter.")
+        if reading[4] < WHO_CHLORINE_LOW:
+            advice.append("Chlorine level too low. Add disinfectant and re-test.")
+        advice.append("Re-sample this tap within 72 hours.")
+    else:
+        advice.append("!! UNSAFE — Do not use this water for drinking or cooking !!")
+        if reading[7] == 1:
+            advice.append("Bacterial contamination found. Flush and chlorinate the line.")
+        if reading[5] > WHO_NITRATE:
+            advice.append(f"Nitrates at {reading[5]:.0f} mg/L — above WHO 45 mg/L limit.")
+        if reading[2] > WHO_TDS:
+            advice.append(f"TDS at {reading[2]:.0f} mg/L — install RO filter.")
+        advice.append("Seal this outlet and report to campus maintenance immediately.")
+    return advice
+
+def print_report(tap_name, reading, outcome, confidence, advice):
+    W = 52
+    print("\n" + "=" * W)
+    print("   AquaGuard AI  |  Campus Water Safety Report")
+    print("=" * W)
+    print(f"   Tap / Point  : {tap_name}")
+    print(f"   pH           : {reading[0]:.2f}")
+    print(f"   Turbidity    : {reading[1]:.2f} NTU")
+    print(f"   TDS          : {reading[2]:.0f} mg/L")
+    print(f"   Hardness     : {reading[3]:.0f} mg/L")
+    print(f"   Chlorine     : {reading[4]:.2f} mg/L")
+    print(f"   Nitrates     : {reading[5]:.2f} mg/L")
+    print(f"   Temp         : {reading[6]:.1f} °C")
+    print(f"   Bacteria     : {'PRESENT' if reading[7] else 'Clear'}")
+    print("-" * W)
+    print(f"   Result       : {outcome.upper()}")
+    print("-" * W)
+    print("   Likelihood breakdown:")
+    for label, pct in confidence.items():
+        filled = "■" * int(pct * 20)
+        empty  = "□" * (20 - int(pct * 20))
+        print(f"     {label:<14}  {filled}{empty}  {pct*100:.0f}%")
+    print("-" * W)
+    print("   What to do:")
+    for num, point in enumerate(advice, start=1):
+        print(f"     {num}. {point}")
+    print("=" * W)
