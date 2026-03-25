@@ -43,7 +43,6 @@ No paid libraries. No external ML frameworks. Just Python, NumPy, and Pandas —
 aquaguard-ai/
 │
 ├── aquaguard_ai.py          # Main file — all logic lives here
-├── water_quality_data.csv   # Auto-generated when you run the script
 └── README.md
 ```
 
