@@ -209,3 +209,55 @@ def print_report(tap_name, reading, outcome, confidence, advice):
     for num, point in enumerate(advice, start=1):
         print(f"     {num}. {point}")
     print("=" * W)
+def scan_all_taps(trained_tree):
+    tap_points = [
+        ("Hostel A — Ground Floor Tap", [6.8, 2.1, 310, 160, 0.5, 12, 24, 0]),
+        ("Central Canteen Filter",      [7.2, 1.5, 280, 140, 0.6, 10, 26, 0]),
+        ("Science Lab Water Outlet",    [6.2, 7.8, 650, 320, 0.1, 50, 28, 1]),
+        ("Main Block Water Cooler",     [7.5, 3.2, 400, 200, 0.4, 20, 25, 0]),
+        ("Sports Complex Tap",          [8.7, 9.5, 720, 370, 1.4, 55, 30, 1]),
+    ]
+
+    print("\n  Scanning all registered water points on campus...\n")
+    tally = {"Safe": 0, "Moderate Risk": 0, "High Risk": 0}
+
+    for tap, reading in tap_points:
+        result, conf = run_prediction(trained_tree, reading)
+        tips = give_advice(result, reading)
+        print_report(tap, reading, result, conf, tips)
+        tally[result] += 1
+
+    total_taps  = len(tap_points)
+    safe_count  = tally["Safe"]
+    safety_pct  = (safe_count / total_taps) * 100
+
+    print("\n" + "=" * 52)
+    print("   CAMPUS OVERVIEW")
+    print("=" * 52)
+    for status, cnt in tally.items():
+        print(f"   {status:<20} : {cnt} tap(s)")
+    print(f"\n   Campus Water Safety Index : {safety_pct:.0f}%")
+    if safety_pct == 100:
+        print("   Overall Status : ALL TAPS CLEAR")
+    elif safety_pct >= 60:
+        print("   Overall Status : PARTIAL RISK — fix flagged taps")
+    else:
+        print("   Overall Status : CRITICAL — campus-wide alert needed")
+    print("=" * 52)
+
+def main():
+    print("\n  [ AquaGuard AI ] Campus Water Quality Predictor")
+    print("  Generating synthetic sensor dataset...\n")
+
+    water_df = make_water_data(TOTAL_SAMPLES)
+    water_df.to_csv("water_quality_data.csv", index=False)
+    print(f"  Dataset ready — {TOTAL_SAMPLES} samples saved to water_quality_data.csv")
+
+    print("\n  Building decision tree classifier from scratch...")
+    my_tree, accuracy, cols = train_and_evaluate(water_df)
+    print(f"\n  Training complete. Accuracy on test set: {accuracy * 100:.2f}%")
+
+    scan_all_taps(my_tree)
+
+if __name__ == "__main__":
+    main()
